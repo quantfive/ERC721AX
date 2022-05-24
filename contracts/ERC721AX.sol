@@ -4,12 +4,13 @@
 
 pragma solidity ^0.8.4;
 
-import './IERC721A.sol';
+import './IERC721AX.sol';
 
 /**
  * @dev ERC721 token receiver interface.
+ * @maikir: Tweaked by maikir for being able to mint out of order token ids.
  */
-interface ERC721A__IERC721Receiver {
+interface ERC721AX__IERC721Receiver {
     function onERC721Received(
         address operator,
         address from,
@@ -28,7 +29,7 @@ interface ERC721A__IERC721Receiver {
  *
  * Assumes that the maximum token id cannot exceed 2**256 - 1 (max value of uint256).
  */
-contract ERC721AX is IERC721A {
+contract ERC721AX is IERC721AX {
     // Mask of an entry in packed address data.
     uint256 private constant BITMASK_ADDRESS_DATA_ENTRY = (1 << 64) - 1;
 
@@ -50,14 +51,17 @@ contract ERC721AX is IERC721A {
     // The bit mask of the `burned` bit in packed ownership.
     uint256 private constant BITMASK_BURNED = 1 << 224;
 
+    //@maikir: Unecessary -- all tokens need to be initialized now.
     // The bit position of the `nextInitialized` bit in packed ownership.
-    uint256 private constant BITPOS_NEXT_INITIALIZED = 225;
+    // uint256 private constant BITPOS_NEXT_INITIALIZED = 225;
 
+    //@maikir: Unecessary -- all tokens need to be initialized now.
     // The bit mask of the `nextInitialized` bit in packed ownership.
-    uint256 private constant BITMASK_NEXT_INITIALIZED = 1 << 225;
+    // uint256 private constant BITMASK_NEXT_INITIALIZED = 1 << 225;
 
+    //@maikir: Unecessary -- tokens are not minted in sequential order any longer.
     // The tokenId of the next token to be minted.
-    uint256 private _currentIndex;
+    // uint256 private _currentIndex;
 
     // The number of tokens burned.
     uint256 private _burnCounter;
@@ -67,6 +71,9 @@ contract ERC721AX is IERC721A {
 
     // Token symbol
     string private _symbol;
+
+    //@maikir: Token mint counter.
+    uint256 private _mintCounter;
 
     // Mapping from token ID to ownership details
     // An empty struct value does not necessarily mean the token is unowned.
@@ -97,7 +104,7 @@ contract ERC721AX is IERC721A {
     constructor(string memory name_, string memory symbol_) {
         _name = name_;
         _symbol = symbol_;
-        _currentIndex = _startTokenId();
+        // _currentIndex = _startTokenId();
     }
 
     /**
@@ -111,9 +118,9 @@ contract ERC721AX is IERC721A {
     /**
      * @dev Returns the next token ID to be minted.
      */
-    function _nextTokenId() internal view returns (uint256) {
-        return _currentIndex;
-    }
+    // function _nextTokenId() internal view returns (uint256) {
+    //     return _currentIndex;
+    // }
 
     /**
      * @dev Returns the total number of tokens in existence.
@@ -124,7 +131,7 @@ contract ERC721AX is IERC721A {
         // Counter underflow is impossible as _burnCounter cannot be incremented
         // more than `_currentIndex - _startTokenId()` times.
         unchecked {
-            return _currentIndex - _burnCounter - _startTokenId();
+            return _mintCounter - _burnCounter;
         }
     }
 
@@ -135,7 +142,7 @@ contract ERC721AX is IERC721A {
         // Counter underflow is impossible as _currentIndex does not decrement,
         // and it is initialized to `_startTokenId()`
         unchecked {
-            return _currentIndex - _startTokenId();
+            return _mintCounter;
         }
     }
 
@@ -324,8 +331,8 @@ contract ERC721AX is IERC721A {
         address owner = address(uint160(_packedOwnershipOf(tokenId)));
         if (to == owner) revert ApprovalToCurrentOwner();
 
-        if (_msgSenderERC721A() != owner)
-            if (!isApprovedForAll(owner, _msgSenderERC721A())) {
+        if (_msgSenderERC721AX() != owner)
+            if (!isApprovedForAll(owner, _msgSenderERC721AX())) {
                 revert ApprovalCallerNotOwnerNorApproved();
             }
 
@@ -346,10 +353,10 @@ contract ERC721AX is IERC721A {
      * @dev See {IERC721-setApprovalForAll}.
      */
     function setApprovalForAll(address operator, bool approved) public virtual override {
-        if (operator == _msgSenderERC721A()) revert ApproveToCaller();
+        if (operator == _msgSenderERC721AX()) revert ApproveToCaller();
 
-        _operatorApprovals[_msgSenderERC721A()][operator] = approved;
-        emit ApprovalForAll(_msgSenderERC721A(), operator, approved);
+        _operatorApprovals[_msgSenderERC721AX()][operator] = approved;
+        emit ApprovalForAll(_msgSenderERC721AX(), operator, approved);
     }
 
     /**
@@ -406,8 +413,8 @@ contract ERC721AX is IERC721A {
      */
     function _exists(uint256 tokenId) internal view returns (bool) {
         return
-            _startTokenId() <= tokenId &&
-            tokenId < _currentIndex && // If within bounds,
+            //@maikir: Simple check to see if the value of packed ownership is 0. If 0, token has not been packed/initialized.
+            _packedOwnerships[tokenId] != 0 &&
             _packedOwnerships[tokenId] & BITMASK_BURNED == 0; // and not burned.
     }
 
@@ -432,12 +439,16 @@ contract ERC721AX is IERC721A {
      */
     function _safeMint(
         address to,
-        uint256[] calldata tokenIds,
         uint256 quantity,
+        uint256[] calldata tokenIds,
         bytes memory _data
     ) internal {
         if (to == address(0)) revert MintToZeroAddress();
         if (quantity == 0) revert MintZeroQuantity();
+        //@maikir: revert if token ids array length and quantity do not match
+        if (quantity != tokenIds.length) revert TokenIdsAndQuantityDoNotMatch();
+        //@maikir: revert if token already exists
+        if (!_exists(tokenId)) revert MintAttemptForExistingToken();
 
         //@maikir: _beforeTokenTransfers currently only works for sequntial currently -- adjust?
         // _beforeTokenTransfers(address(0), to, startTokenId, quantity);
@@ -464,8 +475,8 @@ contract ERC721AX is IERC721A {
             while (tokenCounter < quantity) {
                 _packedOwnerships[tokenIds[tokenCounter++]] =
                     _addressToUint256(to) |
-                    (block.timestamp << BITPOS_START_TIMESTAMP) |
-                    (_boolToUint256(quantity == 1) << BITPOS_NEXT_INITIALIZED);
+                    (block.timestamp << BITPOS_START_TIMESTAMP);
+                    // (_boolToUint256(quantity == 1) << BITPOS_NEXT_INITIALIZED);
             }
 
             tokenCounter = 0;
@@ -484,6 +495,8 @@ contract ERC721AX is IERC721A {
                     emit Transfer(address(0), to, tokenIds[tokenCounter++]);
                 } while (tokenCounter < quantity);
             }
+            //@maikir: Increment mint counter after mint is succesful
+            _mintCounter += quantity;
         }
 
         //@maikir: _afterTokenTransfers currently only works for sequntial currently -- adjust?
@@ -501,9 +514,17 @@ contract ERC721AX is IERC721A {
      *
      * Emits a {Transfer} event.
      */
-    function _mint(address to, uint256 quantity) internal {
+    function _mint(
+        address to,
+        uint256 quantity,
+        uint256[] calldata tokenIds
+    ) internal {
         if (to == address(0)) revert MintToZeroAddress();
         if (quantity == 0) revert MintZeroQuantity();
+        //@maikir: revert if token ids array length and quantity do not match
+        if (quantity != tokenIds.length) revert TokenIdsAndQuantityDoNotMatch();
+        //@maikir: revert if token already exists
+        if (!_exists(tokenId)) revert MintAttemptForExistingToken();
 
         //@maikir: _beforeTokenTransfers currently only works for sequntial currently -- adjust?
         // _beforeTokenTransfers(address(0), to, startTokenId, quantity);
@@ -530,8 +551,8 @@ contract ERC721AX is IERC721A {
             while (tokenCounter < quantity) {
                 _packedOwnerships[tokenIds[tokenCounter++]] =
                     _addressToUint256(to) |
-                    (block.timestamp << BITPOS_START_TIMESTAMP) |
-                    (_boolToUint256(quantity == 1) << BITPOS_NEXT_INITIALIZED);
+                    (block.timestamp << BITPOS_START_TIMESTAMP);
+                    // (_boolToUint256(quantity == 1) << BITPOS_NEXT_INITIALIZED);
             }
 
             tokenCounter = 0;
@@ -539,6 +560,9 @@ contract ERC721AX is IERC721A {
             do {
                 emit Transfer(address(0), to, tokenIds[tokenCounter++]);
             } while (tokenCounter < quantity);
+
+            //@maikir: Increment mint counter after mint is succesful
+            _mintCounter += quantity;
         }
 
         //@maikir: _afterTokenTransfers currently only works for sequntial currently -- adjust?
@@ -564,9 +588,9 @@ contract ERC721AX is IERC721A {
 
         if (address(uint160(prevOwnershipPacked)) != from) revert TransferFromIncorrectOwner();
 
-        bool isApprovedOrOwner = (_msgSenderERC721A() == from ||
-            isApprovedForAll(from, _msgSenderERC721A()) ||
-            getApproved(tokenId) == _msgSenderERC721A());
+        bool isApprovedOrOwner = (_msgSenderERC721AX() == from ||
+            isApprovedForAll(from, _msgSenderERC721AX()) ||
+            getApproved(tokenId) == _msgSenderERC721AX());
 
         if (!isApprovedOrOwner) revert TransferCallerNotOwnerNorApproved();
         if (to == address(0)) revert TransferToZeroAddress();
@@ -591,10 +615,10 @@ contract ERC721AX is IERC721A {
             // - `nextInitialized` to `true`.
             _packedOwnerships[tokenId] =
                 _addressToUint256(to) |
-                (block.timestamp << BITPOS_START_TIMESTAMP) |
-                BITMASK_NEXT_INITIALIZED;
+                (block.timestamp << BITPOS_START_TIMESTAMP);
+                // BITMASK_NEXT_INITIALIZED;
 
-            //---------- UNEEDED ---------
+            //@maikir: ---------- UNEEDED --------- All tokens should be initialized on mint.
             // If the next slot may not have been initialized (i.e. `nextInitialized == false`) .
             // if (prevOwnershipPacked & BITMASK_NEXT_INITIALIZED == 0) {
             //     uint256 nextTokenId = tokenId + 1;
@@ -636,9 +660,9 @@ contract ERC721AX is IERC721A {
         address from = address(uint160(prevOwnershipPacked));
 
         if (approvalCheck) {
-            bool isApprovedOrOwner = (_msgSenderERC721A() == from ||
-                isApprovedForAll(from, _msgSenderERC721A()) ||
-                getApproved(tokenId) == _msgSenderERC721A());
+            bool isApprovedOrOwner = (_msgSenderERC721AX() == from ||
+                isApprovedForAll(from, _msgSenderERC721AX()) ||
+                getApproved(tokenId) == _msgSenderERC721AX());
 
             if (!isApprovedOrOwner) revert TransferCallerNotOwnerNorApproved();
         }
@@ -668,10 +692,10 @@ contract ERC721AX is IERC721A {
             _packedOwnerships[tokenId] =
                 _addressToUint256(from) |
                 (block.timestamp << BITPOS_START_TIMESTAMP) |
-                BITMASK_BURNED |
-                BITMASK_NEXT_INITIALIZED;
+                BITMASK_BURNED;
+                // BITMASK_NEXT_INITIALIZED;
 
-            //---------- UNEEDED ---------
+            //@maikir: ---------- UNEEDED --------- All tokens should be initialized on mint.
             // If the next slot may not have been initialized (i.e. `nextInitialized == false`) .
             // if (prevOwnershipPacked & BITMASK_NEXT_INITIALIZED == 0) {
             //     uint256 nextTokenId = tokenId + 1;
@@ -710,10 +734,10 @@ contract ERC721AX is IERC721A {
         uint256 tokenId,
         bytes memory _data
     ) private returns (bool) {
-        try ERC721A__IERC721Receiver(to).onERC721Received(_msgSenderERC721A(), from, tokenId, _data) returns (
+        try ERC721AX__IERC721Receiver(to).onERC721Received(_msgSenderERC721AX(), from, tokenId, _data) returns (
             bytes4 retval
         ) {
-            return retval == ERC721A__IERC721Receiver(to).onERC721Received.selector;
+            return retval == ERC721AX__IERC721Receiver(to).onERC721Received.selector;
         } catch (bytes memory reason) {
             if (reason.length == 0) {
                 revert TransferToNonERC721ReceiverImplementer();
@@ -775,7 +799,7 @@ contract ERC721AX is IERC721A {
      *
      * If you are writing GSN compatible contracts, you need to override this function.
      */
-    function _msgSenderERC721A() internal view virtual returns (address) {
+    function _msgSenderERC721AX() internal view virtual returns (address) {
         return msg.sender;
     }
 
