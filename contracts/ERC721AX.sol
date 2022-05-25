@@ -439,8 +439,8 @@ contract ERC721AX is IERC721AX {
      */
     function _safeMint(
         address to,
-        uint256 quantity,
         uint256[] calldata tokenIds,
+        uint256 quantity,
         bytes memory _data
     ) internal {
         if (to == address(0)) revert MintToZeroAddress();
@@ -450,8 +450,7 @@ contract ERC721AX is IERC721AX {
         //@maikir: revert if token already exists
         if (!_exists(tokenId)) revert MintAttemptForExistingToken();
 
-        //@maikir: _beforeTokenTransfers currently only works for sequntial currently -- adjust?
-        // _beforeTokenTransfers(address(0), to, startTokenId, quantity);
+        _beforeTokenTransfers(address(0), to, tokenIds, quantity);
 
         // Overflows are incredibly unrealistic.
         // balance or numberMinted overflow if current value of either + quantity > 1.8e19 (2**64) - 1
@@ -499,8 +498,7 @@ contract ERC721AX is IERC721AX {
             _mintCounter += quantity;
         }
 
-        //@maikir: _afterTokenTransfers currently only works for sequntial currently -- adjust?
-        // _afterTokenTransfers(address(0), to, startTokenId, quantity);
+        _afterTokenTransfers(address(0), to, tokenIds, quantity);
     }
 
     //@maikir Important: how to check that multiple of the same address cannot be minted -- check to make sure same id hasn't been minted yet
@@ -516,8 +514,8 @@ contract ERC721AX is IERC721AX {
      */
     function _mint(
         address to,
+        uint256[] calldata tokenIds,
         uint256 quantity,
-        uint256[] calldata tokenIds
     ) internal {
         if (to == address(0)) revert MintToZeroAddress();
         if (quantity == 0) revert MintZeroQuantity();
@@ -526,8 +524,7 @@ contract ERC721AX is IERC721AX {
         //@maikir: revert if token already exists
         if (!_exists(tokenId)) revert MintAttemptForExistingToken();
 
-        //@maikir: _beforeTokenTransfers currently only works for sequntial currently -- adjust?
-        // _beforeTokenTransfers(address(0), to, startTokenId, quantity);
+        _beforeTokenTransfers(address(0), to, tokenIds, quantity);
 
         // Overflows are incredibly unrealistic.
         // balance or numberMinted overflow if current value of either + quantity > 1.8e19 (2**64) - 1
@@ -565,8 +562,7 @@ contract ERC721AX is IERC721AX {
             _mintCounter += quantity;
         }
 
-        //@maikir: _afterTokenTransfers currently only works for sequntial currently -- adjust?
-        // _afterTokenTransfers(address(0), to, startTokenId, quantity);
+        _afterTokenTransfers(address(0), to, tokenIds, quantity);
     }
 
     /**
@@ -595,7 +591,9 @@ contract ERC721AX is IERC721AX {
         if (!isApprovedOrOwner) revert TransferCallerNotOwnerNorApproved();
         if (to == address(0)) revert TransferToZeroAddress();
 
-        _beforeTokenTransfers(from, to, tokenId, 1);
+        //@maikir: cast uint256 to 1 length array
+        uint256[1] memory tokenIds = [tokenId];
+        _beforeTokenTransfers(from, to, tokenIds, 1);
 
         // Clear approvals from the previous owner.
         delete _tokenApprovals[tokenId];
@@ -634,7 +632,7 @@ contract ERC721AX is IERC721AX {
         }
 
         emit Transfer(from, to, tokenId);
-        _afterTokenTransfers(from, to, tokenId, 1);
+        _afterTokenTransfers(from, to, tokenIds, 1);
     }
 
     /**
@@ -667,7 +665,9 @@ contract ERC721AX is IERC721AX {
             if (!isApprovedOrOwner) revert TransferCallerNotOwnerNorApproved();
         }
 
-        _beforeTokenTransfers(from, address(0), tokenId, 1);
+        //@maikir: cast uint256 to 1 length array
+        uint256[1] memory tokenIds = [tokenId];
+        _beforeTokenTransfers(from, address(0), tokenIds, 1);
 
         // Clear approvals from the previous owner.
         delete _tokenApprovals[tokenId];
@@ -711,8 +711,9 @@ contract ERC721AX is IERC721AX {
         }
 
         emit Transfer(from, address(0), tokenId);
-        _afterTokenTransfers(from, address(0), tokenId, 1);
+        _afterTokenTransfers(from, address(0), tokenIds, 1);
 
+        //@maikir: maybe not true anymore(?) below
         // Overflow not possible, as _burnCounter cannot be exceed _currentIndex times.
         unchecked {
             _burnCounter++;
@@ -767,7 +768,7 @@ contract ERC721AX is IERC721AX {
     function _beforeTokenTransfers(
         address from,
         address to,
-        uint256 startTokenId,
+        uint256[] calldata tokenIds,
         uint256 quantity
     ) internal virtual {}
 
@@ -790,7 +791,7 @@ contract ERC721AX is IERC721AX {
     function _afterTokenTransfers(
         address from,
         address to,
-        uint256 startTokenId,
+        uint256[] calldata tokenIds,
         uint256 quantity
     ) internal virtual {}
 
