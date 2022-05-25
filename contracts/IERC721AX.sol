@@ -6,7 +6,7 @@ pragma solidity ^0.8.4;
 
 /**
  * @dev Interface of an ERC721A compliant contract.
- * @maikir: Tweaked by maikir for being able to mint out of order token ids.
+ * ^maikir: Tweaked by maikir for being able to mint out of order token ids.
  */
 interface IERC721AX {
     /**
@@ -35,7 +35,7 @@ interface IERC721AX {
     error BalanceQueryForZeroAddress();
 
     /**
-     * @maikir: Error for attemping to mint an already minted token.
+     * ^maikir: Error for attemping to mint an already minted token.
      */
     error MintAttemptForExistingToken();
 
@@ -55,7 +55,7 @@ interface IERC721AX {
     error OwnerQueryForNonexistentToken();
 
     /**
-     * @maikir: Error for token ids array size and quantity of tokens to be minting not matching.
+     * ^maikir: Error for token ids array size and quantity of tokens to be minting not matching.
      */
     error TokenIdsAndQuantityDoNotMatch();
 

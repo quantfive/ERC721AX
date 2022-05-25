@@ -8,7 +8,7 @@ import './IERC721AX.sol';
 
 /**
  * @dev ERC721 token receiver interface.
- * @maikir: Tweaked by maikir for being able to mint out of order token ids.
+ * ^maikir: Tweaked by maikir for being able to mint out of order token ids.
  */
 interface ERC721AX__IERC721Receiver {
     function onERC721Received(
@@ -51,15 +51,15 @@ contract ERC721AX is IERC721AX {
     // The bit mask of the `burned` bit in packed ownership.
     uint256 private constant BITMASK_BURNED = 1 << 224;
 
-    //@maikir: Unecessary -- all tokens need to be initialized now.
+    //^maikir: Unecessary -- all tokens need to be initialized now.
     // The bit position of the `nextInitialized` bit in packed ownership.
     // uint256 private constant BITPOS_NEXT_INITIALIZED = 225;
 
-    //@maikir: Unecessary -- all tokens need to be initialized now.
+    //^maikir: Unecessary -- all tokens need to be initialized now.
     // The bit mask of the `nextInitialized` bit in packed ownership.
     // uint256 private constant BITMASK_NEXT_INITIALIZED = 1 << 225;
 
-    //@maikir: Unecessary -- tokens are not minted in sequential order any longer.
+    //^maikir: Unecessary -- tokens are not minted in sequential order any longer.
     // The tokenId of the next token to be minted.
     // uint256 private _currentIndex;
 
@@ -72,7 +72,7 @@ contract ERC721AX is IERC721AX {
     // Token symbol
     string private _symbol;
 
-    //@maikir: Token mint counter.
+    //^maikir: Token mint counter.
     uint256 private _mintCounter;
 
     // Mapping from token ID to ownership details
@@ -225,7 +225,7 @@ contract ERC721AX is IERC721AX {
             //
             // We can directly compare the packed value.
             // If the address is zero, packed is zero.
-            //@maikir: Return value if there is packed data, call revert if there is none (all tokens should be packed -- non-existant token)
+            //^maikir: Return value if there is packed data, call revert if there is none (all tokens should be packed -- non-existant token)
             if (packed != 0) {
                 return packed;
             }
@@ -413,7 +413,7 @@ contract ERC721AX is IERC721AX {
      */
     function _exists(uint256 tokenId) internal view returns (bool) {
         return
-            //@maikir: Simple check to see if the value of packed ownership is 0. If 0, token has not been packed/initialized.
+            //^maikir: Simple check to see if the value of packed ownership is 0. If 0, token has not been packed/initialized.
             _packedOwnerships[tokenId] != 0 &&
             _packedOwnerships[tokenId] & BITMASK_BURNED == 0; // and not burned.
     }
@@ -425,7 +425,7 @@ contract ERC721AX is IERC721AX {
         _safeMint(to, quantity, '');
     }
 
-    //@maikir Important: how to check that multiple of the same address cannot be minted -- check to make sure same id hasn't been minted yet
+    //^maikir Important: how to check that multiple of the same address cannot be minted -- check to make sure same id hasn't been minted yet
     /**
      * @dev Safely mints `quantity` tokens and transfers them to `to`.
      *
@@ -445,17 +445,15 @@ contract ERC721AX is IERC721AX {
     ) internal {
         if (to == address(0)) revert MintToZeroAddress();
         if (quantity == 0) revert MintZeroQuantity();
-        //@maikir: revert if token ids array length and quantity do not match
+        //^maikir: revert if token ids array length and quantity do not match
         if (quantity != tokenIds.length) revert TokenIdsAndQuantityDoNotMatch();
-        //@maikir: revert if token already exists
-        if (!_exists(tokenId)) revert MintAttemptForExistingToken();
 
         _beforeTokenTransfers(address(0), to, tokenIds, quantity);
 
         // Overflows are incredibly unrealistic.
         // balance or numberMinted overflow if current value of either + quantity > 1.8e19 (2**64) - 1
         // updatedIndex overflows if _currentIndex + quantity > 1.2e77 (2**256) - 1
-        // @maikir remove unchecked?
+        // ^maikir remove unchecked?
         unchecked {
             // Updates:
             // - `balance += quantity`.
@@ -464,44 +462,41 @@ contract ERC721AX is IERC721AX {
             // We can directly add to the balance and number minted.
             _packedAddressData[to] += quantity * ((1 << BITPOS_NUMBER_MINTED) | 1);
 
-
             // Updates:
             // - `address` to the owner.
             // - `startTimestamp` to the timestamp of minting.
             // - `burned` to `false`.
             // - `nextInitialized` to `quantity == 1`.
-            // @maikir: Set the below to store packed ownership data for each token being minted, not just one.
-            while (tokenCounter < quantity) {
-                _packedOwnerships[tokenIds[tokenCounter++]] =
+            // ^maikir: Set the below to store packed ownership data for each token being minted, not just one.
+            for (uint256 tokenCounter = 0; tokenCounter < quantity; tokenCounter++) {
+                //^maikir: revert if token already exists
+                if (_exists(tokenIds[tokenCounter])) revert MintAttemptForExistingToken();
+
+                _packedOwnerships[tokenIds[tokenCounter]] =
                     _addressToUint256(to) |
                     (block.timestamp << BITPOS_START_TIMESTAMP);
                     // (_boolToUint256(quantity == 1) << BITPOS_NEXT_INITIALIZED);
-            }
 
-            tokenCounter = 0;
-
-            if (to.code.length != 0) {
-                do {
+                if (to.code.length != 0) {
                     emit Transfer(address(0), to, tokenIds[tokenCounter]);
-                    if (!_checkContractOnERC721Received(address(0), to, tokenIds[tokenCounter++], _data)) {
+                    if (!_checkContractOnERC721Received(address(0), to, tokenIds[tokenCounter], _data)) {
                         revert TransferToNonERC721ReceiverImplementer();
                     }
-                } while (tokenCounter < quantity);
-                // Reentrancy protection @maikir: check this?
-                if (_currentIndex != startTokenId) revert();
-            } else {
-                do {
-                    emit Transfer(address(0), to, tokenIds[tokenCounter++]);
-                } while (tokenCounter < quantity);
+                    // Reentrancy protection ^maikir: check this?
+                    // if (_currentIndex != startTokenId) revert();
+                } else {
+                    emit Transfer(address(0), to, tokenIds[tokenCounter]);
+                }
             }
-            //@maikir: Increment mint counter after mint is succesful
+
+            //^maikir: Increment mint counter after mint is succesful
             _mintCounter += quantity;
         }
 
         _afterTokenTransfers(address(0), to, tokenIds, quantity);
     }
 
-    //@maikir Important: how to check that multiple of the same address cannot be minted -- check to make sure same id hasn't been minted yet
+    //^maikir Important: how to check that multiple of the same address cannot be minted -- check to make sure same id hasn't been minted yet
     /**
      * @dev Mints `quantity` tokens and transfers them to `to`.
      *
@@ -515,21 +510,19 @@ contract ERC721AX is IERC721AX {
     function _mint(
         address to,
         uint256[] calldata tokenIds,
-        uint256 quantity,
+        uint256 quantity
     ) internal {
         if (to == address(0)) revert MintToZeroAddress();
         if (quantity == 0) revert MintZeroQuantity();
-        //@maikir: revert if token ids array length and quantity do not match
+        //^maikir: revert if token ids array length and quantity do not match
         if (quantity != tokenIds.length) revert TokenIdsAndQuantityDoNotMatch();
-        //@maikir: revert if token already exists
-        if (!_exists(tokenId)) revert MintAttemptForExistingToken();
 
         _beforeTokenTransfers(address(0), to, tokenIds, quantity);
 
         // Overflows are incredibly unrealistic.
         // balance or numberMinted overflow if current value of either + quantity > 1.8e19 (2**64) - 1
         // updatedIndex overflows if _currentIndex + quantity > 1.2e77 (2**256) - 1
-        // @maikir remove unchecked?
+        // ^maikir remove unchecked?
         unchecked {
             // Updates:
             // - `balance += quantity`.
@@ -538,27 +531,24 @@ contract ERC721AX is IERC721AX {
             // We can directly add to the balance and number minted.
             _packedAddressData[to] += quantity * ((1 << BITPOS_NUMBER_MINTED) | 1);
 
-
             // Updates:
             // - `address` to the owner.
             // - `startTimestamp` to the timestamp of minting.
             // - `burned` to `false`.
             // - `nextInitialized` to `quantity == 1`.
-            // @maikir: Set the below to store packed ownership data for each token being minted, not just one.
-            while (tokenCounter < quantity) {
-                _packedOwnerships[tokenIds[tokenCounter++]] =
+            // ^maikir: Set the below to store packed ownership data for each token being minted, not just one.
+            for (uint256 tokenCounter = 0; tokenCounter < quantity; tokenCounter++) {
+                //^maikir: revert if token already exists
+                if (_exists(tokenIds[tokenCounter])) revert MintAttemptForExistingToken();
+
+                _packedOwnerships[tokenIds[tokenCounter]] =
                     _addressToUint256(to) |
                     (block.timestamp << BITPOS_START_TIMESTAMP);
                     // (_boolToUint256(quantity == 1) << BITPOS_NEXT_INITIALIZED);
+                emit Transfer(address(0), to, tokenIds[tokenCounter]);
             }
 
-            tokenCounter = 0;
-
-            do {
-                emit Transfer(address(0), to, tokenIds[tokenCounter++]);
-            } while (tokenCounter < quantity);
-
-            //@maikir: Increment mint counter after mint is succesful
+            //^maikir: Increment mint counter after mint is succesful
             _mintCounter += quantity;
         }
 
@@ -591,7 +581,7 @@ contract ERC721AX is IERC721AX {
         if (!isApprovedOrOwner) revert TransferCallerNotOwnerNorApproved();
         if (to == address(0)) revert TransferToZeroAddress();
 
-        //@maikir: cast uint256 to 1 length array
+        //^maikir: cast uint256 to 1 length array
         uint256[1] memory tokenIds = [tokenId];
         _beforeTokenTransfers(from, to, tokenIds, 1);
 
@@ -616,7 +606,7 @@ contract ERC721AX is IERC721AX {
                 (block.timestamp << BITPOS_START_TIMESTAMP);
                 // BITMASK_NEXT_INITIALIZED;
 
-            //@maikir: ---------- UNEEDED --------- All tokens should be initialized on mint.
+            //^maikir: ---------- UNEEDED --------- All tokens should be initialized on mint.
             // If the next slot may not have been initialized (i.e. `nextInitialized == false`) .
             // if (prevOwnershipPacked & BITMASK_NEXT_INITIALIZED == 0) {
             //     uint256 nextTokenId = tokenId + 1;
@@ -665,7 +655,7 @@ contract ERC721AX is IERC721AX {
             if (!isApprovedOrOwner) revert TransferCallerNotOwnerNorApproved();
         }
 
-        //@maikir: cast uint256 to 1 length array
+        //^maikir: cast uint256 to 1 length array
         uint256[1] memory tokenIds = [tokenId];
         _beforeTokenTransfers(from, address(0), tokenIds, 1);
 
@@ -695,7 +685,7 @@ contract ERC721AX is IERC721AX {
                 BITMASK_BURNED;
                 // BITMASK_NEXT_INITIALIZED;
 
-            //@maikir: ---------- UNEEDED --------- All tokens should be initialized on mint.
+            //^maikir: ---------- UNEEDED --------- All tokens should be initialized on mint.
             // If the next slot may not have been initialized (i.e. `nextInitialized == false`) .
             // if (prevOwnershipPacked & BITMASK_NEXT_INITIALIZED == 0) {
             //     uint256 nextTokenId = tokenId + 1;
@@ -713,7 +703,7 @@ contract ERC721AX is IERC721AX {
         emit Transfer(from, address(0), tokenId);
         _afterTokenTransfers(from, address(0), tokenIds, 1);
 
-        //@maikir: maybe not true anymore(?) below
+        //^maikir: maybe not true anymore(?) below
         // Overflow not possible, as _burnCounter cannot be exceed _currentIndex times.
         unchecked {
             _burnCounter++;
