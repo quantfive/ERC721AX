@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 // ERC721A Contracts v3.3.0
 // Creator: Chiru Labs
+// Adjusted by: maikir
 
 pragma solidity ^0.8.4;
 
-import './IERC721AX.sol';
+import "./IERC721AX.sol";
 
 /**
  * @dev ERC721 token receiver interface.
@@ -156,7 +157,13 @@ contract ERC721AX is IERC721AX {
     /**
      * @dev See {IERC165-supportsInterface}.
      */
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override
+        returns (bool)
+    {
         // The interface IDs are constants representing the first 4 bytes of the XOR of
         // all function selectors in the interface. See: https://eips.ethereum.org/EIPS/eip-165
         // e.g. `bytes4(i.functionA.selector ^ i.functionB.selector ^ ...)`
@@ -178,14 +185,18 @@ contract ERC721AX is IERC721AX {
      * Returns the number of tokens minted by `owner`.
      */
     function _numberMinted(address owner) internal view returns (uint256) {
-        return (_packedAddressData[owner] >> BITPOS_NUMBER_MINTED) & BITMASK_ADDRESS_DATA_ENTRY;
+        return
+            (_packedAddressData[owner] >> BITPOS_NUMBER_MINTED) &
+            BITMASK_ADDRESS_DATA_ENTRY;
     }
 
     /**
      * Returns the number of tokens burned by or on behalf of `owner`.
      */
     function _numberBurned(address owner) internal view returns (uint256) {
-        return (_packedAddressData[owner] >> BITPOS_NUMBER_BURNED) & BITMASK_ADDRESS_DATA_ENTRY;
+        return
+            (_packedAddressData[owner] >> BITPOS_NUMBER_BURNED) &
+            BITMASK_ADDRESS_DATA_ENTRY;
     }
 
     /**
@@ -202,7 +213,8 @@ contract ERC721AX is IERC721AX {
     function _setAux(address owner, uint64 aux) internal {
         uint256 packed = _packedAddressData[owner];
         uint256 auxCasted;
-        assembly { // Cast aux without masking.
+        assembly {
+            // Cast aux without masking.
             auxCasted := aux
         }
         packed = (packed & BITMASK_AUX_COMPLEMENT) | (auxCasted << BITPOS_AUX);
@@ -212,7 +224,11 @@ contract ERC721AX is IERC721AX {
     /**
      * Returns the packed ownership data of `tokenId`.
      */
-    function _packedOwnershipOf(uint256 tokenId) private view returns (uint256) {
+    function _packedOwnershipOf(uint256 tokenId)
+        private
+        view
+        returns (uint256)
+    {
         uint256 curr = tokenId;
 
         uint256 packed = _packedOwnerships[curr];
@@ -236,7 +252,11 @@ contract ERC721AX is IERC721AX {
     /**
      * Returns the unpacked `TokenOwnership` struct from `packed`.
      */
-    function _unpackedOwnership(uint256 packed) private pure returns (TokenOwnership memory ownership) {
+    function _unpackedOwnership(uint256 packed)
+        private
+        pure
+        returns (TokenOwnership memory ownership)
+    {
         ownership.addr = address(uint160(packed));
         ownership.startTimestamp = uint64(packed >> BITPOS_START_TIMESTAMP);
         ownership.burned = packed & BITMASK_BURNED != 0;
@@ -245,7 +265,11 @@ contract ERC721AX is IERC721AX {
     /**
      * Returns the unpacked `TokenOwnership` struct at `index`.
      */
-    function _ownershipAt(uint256 index) internal view returns (TokenOwnership memory) {
+    function _ownershipAt(uint256 index)
+        internal
+        view
+        returns (TokenOwnership memory)
+    {
         return _unpackedOwnership(_packedOwnerships[index]);
     }
 
@@ -262,7 +286,11 @@ contract ERC721AX is IERC721AX {
      * Gas spent here starts off proportional to the maximum mint batch size.
      * It gradually moves to O(1) as tokens get transferred around in the collection over time.
      */
-    function _ownershipOf(uint256 tokenId) internal view returns (TokenOwnership memory) {
+    function _ownershipOf(uint256 tokenId)
+        internal
+        view
+        returns (TokenOwnership memory)
+    {
         return _unpackedOwnership(_packedOwnershipOf(tokenId));
     }
 
@@ -290,11 +318,20 @@ contract ERC721AX is IERC721AX {
     /**
      * @dev See {IERC721Metadata-tokenURI}.
      */
-    function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        virtual
+        override
+        returns (string memory)
+    {
         if (!_exists(tokenId)) revert URIQueryForNonexistentToken();
 
         string memory baseURI = _baseURI();
-        return bytes(baseURI).length != 0 ? string(abi.encodePacked(baseURI, _toString(tokenId))) : '';
+        return
+            bytes(baseURI).length != 0
+                ? string(abi.encodePacked(baseURI, _toString(tokenId)))
+                : "";
     }
 
     /**
@@ -303,13 +340,17 @@ contract ERC721AX is IERC721AX {
      * by default, can be overriden in child contracts.
      */
     function _baseURI() internal view virtual returns (string memory) {
-        return '';
+        return "";
     }
 
     /**
      * @dev Casts the address to uint256 without masking.
      */
-    function _addressToUint256(address value) private pure returns (uint256 result) {
+    function _addressToUint256(address value)
+        private
+        pure
+        returns (uint256 result)
+    {
         assembly {
             result := value
         }
@@ -343,7 +384,12 @@ contract ERC721AX is IERC721AX {
     /**
      * @dev See {IERC721-getApproved}.
      */
-    function getApproved(uint256 tokenId) public view override returns (address) {
+    function getApproved(uint256 tokenId)
+        public
+        view
+        override
+        returns (address)
+    {
         if (!_exists(tokenId)) revert ApprovalQueryForNonexistentToken();
 
         return _tokenApprovals[tokenId];
@@ -352,7 +398,11 @@ contract ERC721AX is IERC721AX {
     /**
      * @dev See {IERC721-setApprovalForAll}.
      */
-    function setApprovalForAll(address operator, bool approved) public virtual override {
+    function setApprovalForAll(address operator, bool approved)
+        public
+        virtual
+        override
+    {
         if (operator == _msgSenderERC721AX()) revert ApproveToCaller();
 
         _operatorApprovals[_msgSenderERC721AX()][operator] = approved;
@@ -362,7 +412,13 @@ contract ERC721AX is IERC721AX {
     /**
      * @dev See {IERC721-isApprovedForAll}.
      */
-    function isApprovedForAll(address owner, address operator) public view virtual override returns (bool) {
+    function isApprovedForAll(address owner, address operator)
+        public
+        view
+        virtual
+        override
+        returns (bool)
+    {
         return _operatorApprovals[owner][operator];
     }
 
@@ -385,7 +441,7 @@ contract ERC721AX is IERC721AX {
         address to,
         uint256 tokenId
     ) public virtual override {
-        safeTransferFrom(from, to, tokenId, '');
+        safeTransferFrom(from, to, tokenId, "");
     }
 
     /**
@@ -421,8 +477,12 @@ contract ERC721AX is IERC721AX {
     /**
      * @dev Equivalent to `_safeMint(to, quantity, '')`.
      */
-    function _safeMint(address to, uint256 quantity) internal {
-        _safeMint(to, quantity, '');
+    function _safeMint(
+        address to,
+        uint256[] calldata tokenIds,
+        uint256 quantity
+    ) internal {
+        _safeMint(to, tokenIds, quantity, "");
     }
 
     //^maikir Important: how to check that multiple of the same address cannot be minted -- check to make sure same id hasn't been minted yet
@@ -460,7 +520,9 @@ contract ERC721AX is IERC721AX {
             // - `numberMinted += quantity`.
             //
             // We can directly add to the balance and number minted.
-            _packedAddressData[to] += quantity * ((1 << BITPOS_NUMBER_MINTED) | 1);
+            _packedAddressData[to] +=
+                quantity *
+                ((1 << BITPOS_NUMBER_MINTED) | 1);
 
             // Updates:
             // - `address` to the owner.
@@ -468,18 +530,30 @@ contract ERC721AX is IERC721AX {
             // - `burned` to `false`.
             // - `nextInitialized` to `quantity == 1`.
             // ^maikir: Set the below to store packed ownership data for each token being minted, not just one.
-            for (uint256 tokenCounter = 0; tokenCounter < quantity; tokenCounter++) {
+            for (
+                uint256 tokenCounter = 0;
+                tokenCounter < quantity;
+                tokenCounter++
+            ) {
                 //^maikir: revert if token already exists
-                if (_exists(tokenIds[tokenCounter])) revert MintAttemptForExistingToken();
+                if (_exists(tokenIds[tokenCounter]))
+                    revert MintAttemptForExistingToken();
 
                 _packedOwnerships[tokenIds[tokenCounter]] =
                     _addressToUint256(to) |
                     (block.timestamp << BITPOS_START_TIMESTAMP);
-                    // (_boolToUint256(quantity == 1) << BITPOS_NEXT_INITIALIZED);
+                // (_boolToUint256(quantity == 1) << BITPOS_NEXT_INITIALIZED);
 
                 if (to.code.length != 0) {
                     emit Transfer(address(0), to, tokenIds[tokenCounter]);
-                    if (!_checkContractOnERC721Received(address(0), to, tokenIds[tokenCounter], _data)) {
+                    if (
+                        !_checkContractOnERC721Received(
+                            address(0),
+                            to,
+                            tokenIds[tokenCounter],
+                            _data
+                        )
+                    ) {
                         revert TransferToNonERC721ReceiverImplementer();
                     }
                     // Reentrancy protection ^maikir: check this?
@@ -529,7 +603,9 @@ contract ERC721AX is IERC721AX {
             // - `numberMinted += quantity`.
             //
             // We can directly add to the balance and number minted.
-            _packedAddressData[to] += quantity * ((1 << BITPOS_NUMBER_MINTED) | 1);
+            _packedAddressData[to] +=
+                quantity *
+                ((1 << BITPOS_NUMBER_MINTED) | 1);
 
             // Updates:
             // - `address` to the owner.
@@ -537,14 +613,19 @@ contract ERC721AX is IERC721AX {
             // - `burned` to `false`.
             // - `nextInitialized` to `quantity == 1`.
             // ^maikir: Set the below to store packed ownership data for each token being minted, not just one.
-            for (uint256 tokenCounter = 0; tokenCounter < quantity; tokenCounter++) {
+            for (
+                uint256 tokenCounter = 0;
+                tokenCounter < quantity;
+                tokenCounter++
+            ) {
                 //^maikir: revert if token already exists
-                if (_exists(tokenIds[tokenCounter])) revert MintAttemptForExistingToken();
+                if (_exists(tokenIds[tokenCounter]))
+                    revert MintAttemptForExistingToken();
 
                 _packedOwnerships[tokenIds[tokenCounter]] =
                     _addressToUint256(to) |
                     (block.timestamp << BITPOS_START_TIMESTAMP);
-                    // (_boolToUint256(quantity == 1) << BITPOS_NEXT_INITIALIZED);
+                // (_boolToUint256(quantity == 1) << BITPOS_NEXT_INITIALIZED);
                 emit Transfer(address(0), to, tokenIds[tokenCounter]);
             }
 
@@ -572,7 +653,8 @@ contract ERC721AX is IERC721AX {
     ) private {
         uint256 prevOwnershipPacked = _packedOwnershipOf(tokenId);
 
-        if (address(uint160(prevOwnershipPacked)) != from) revert TransferFromIncorrectOwner();
+        if (address(uint160(prevOwnershipPacked)) != from)
+            revert TransferFromIncorrectOwner();
 
         bool isApprovedOrOwner = (_msgSenderERC721AX() == from ||
             isApprovedForAll(from, _msgSenderERC721AX()) ||
@@ -582,7 +664,8 @@ contract ERC721AX is IERC721AX {
         if (to == address(0)) revert TransferToZeroAddress();
 
         //^maikir: cast uint256 to 1 length array
-        uint256[1] memory tokenIds = [tokenId];
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = tokenId;
         _beforeTokenTransfers(from, to, tokenIds, 1);
 
         // Clear approvals from the previous owner.
@@ -604,7 +687,7 @@ contract ERC721AX is IERC721AX {
             _packedOwnerships[tokenId] =
                 _addressToUint256(to) |
                 (block.timestamp << BITPOS_START_TIMESTAMP);
-                // BITMASK_NEXT_INITIALIZED;
+            // BITMASK_NEXT_INITIALIZED;
 
             //^maikir: ---------- UNEEDED --------- All tokens should be initialized on mint.
             // If the next slot may not have been initialized (i.e. `nextInitialized == false`) .
@@ -656,7 +739,8 @@ contract ERC721AX is IERC721AX {
         }
 
         //^maikir: cast uint256 to 1 length array
-        uint256[1] memory tokenIds = [tokenId];
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = tokenId;
         _beforeTokenTransfers(from, address(0), tokenIds, 1);
 
         // Clear approvals from the previous owner.
@@ -683,7 +767,7 @@ contract ERC721AX is IERC721AX {
                 _addressToUint256(from) |
                 (block.timestamp << BITPOS_START_TIMESTAMP) |
                 BITMASK_BURNED;
-                // BITMASK_NEXT_INITIALIZED;
+            // BITMASK_NEXT_INITIALIZED;
 
             //^maikir: ---------- UNEEDED --------- All tokens should be initialized on mint.
             // If the next slot may not have been initialized (i.e. `nextInitialized == false`) .
@@ -725,10 +809,17 @@ contract ERC721AX is IERC721AX {
         uint256 tokenId,
         bytes memory _data
     ) private returns (bool) {
-        try ERC721AX__IERC721Receiver(to).onERC721Received(_msgSenderERC721AX(), from, tokenId, _data) returns (
-            bytes4 retval
-        ) {
-            return retval == ERC721AX__IERC721Receiver(to).onERC721Received.selector;
+        try
+            ERC721AX__IERC721Receiver(to).onERC721Received(
+                _msgSenderERC721AX(),
+                from,
+                tokenId,
+                _data
+            )
+        returns (bytes4 retval) {
+            return
+                retval ==
+                ERC721AX__IERC721Receiver(to).onERC721Received.selector;
         } catch (bytes memory reason) {
             if (reason.length == 0) {
                 revert TransferToNonERC721ReceiverImplementer();
@@ -758,7 +849,7 @@ contract ERC721AX is IERC721AX {
     function _beforeTokenTransfers(
         address from,
         address to,
-        uint256[] calldata tokenIds,
+        uint256[] memory tokenIds,
         uint256 quantity
     ) internal virtual {}
 
@@ -781,7 +872,7 @@ contract ERC721AX is IERC721AX {
     function _afterTokenTransfers(
         address from,
         address to,
-        uint256[] calldata tokenIds,
+        uint256[] memory tokenIds,
         uint256 quantity
     ) internal virtual {}
 
@@ -797,7 +888,11 @@ contract ERC721AX is IERC721AX {
     /**
      * @dev Converts a `uint256` to its ASCII `string` decimal representation.
      */
-    function _toString(uint256 value) internal pure returns (string memory ptr) {
+    function _toString(uint256 value)
+        internal
+        pure
+        returns (string memory ptr)
+    {
         assembly {
             // The maximum value of a uint256 contains 78 digits (1 byte per digit),
             // but we allocate 128 bytes to keep the free memory pointer 32-byte word aliged.
@@ -825,7 +920,8 @@ contract ERC721AX is IERC721AX {
             } temp {
                 // Keep dividing `temp` until zero.
                 temp := div(temp, 10)
-            } { // Body of the for loop.
+            } {
+                // Body of the for loop.
                 ptr := sub(ptr, 1)
                 mstore8(ptr, add(48, mod(temp, 10)))
             }

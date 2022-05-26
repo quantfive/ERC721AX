@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // ERC721A Contracts v3.3.0
 // Creator: Chiru Labs
+// // Adjusted by: maikir
 
 pragma solidity ^0.8.4;
 
