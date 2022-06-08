@@ -5,13 +5,13 @@
 
 pragma solidity ^0.8.4;
 
-import "./IERC721AX.sol";
+import "./IERC721AModified.sol";
 
 /**
  * @dev ERC721 token receiver interface.
  * ^maikir: Tweaked by maikir for being able to mint out of order token ids.
  */
-interface ERC721AX__IERC721Receiver {
+interface ERC721AModified__IERC721Receiver {
     function onERC721Received(
         address operator,
         address from,
@@ -30,7 +30,7 @@ interface ERC721AX__IERC721Receiver {
  *
  * Assumes that the maximum token id cannot exceed 2**256 - 1 (max value of uint256).
  */
-contract ERC721AX is IERC721AX {
+contract ERC721AModified is IERC721AModified {
     // Mask of an entry in packed address data.
     uint256 private constant BITMASK_ADDRESS_DATA_ENTRY = (1 << 64) - 1;
 
@@ -142,9 +142,7 @@ contract ERC721AX is IERC721AX {
     function _totalMinted() internal view returns (uint256) {
         // Counter underflow is impossible as _currentIndex does not decrement,
         // and it is initialized to `_startTokenId()`
-        unchecked {
-            return _mintCounter;
-        }
+        return _mintCounter;
     }
 
     /**
@@ -273,14 +271,15 @@ contract ERC721AX is IERC721AX {
         return _unpackedOwnership(_packedOwnerships[index]);
     }
 
+    //^maikir: not used
     /**
      * @dev Initializes the ownership slot minted at `index` for efficiency purposes.
      */
-    function _initializeOwnershipAt(uint256 index) internal {
-        if (_packedOwnerships[index] == 0) {
-            _packedOwnerships[index] = _packedOwnershipOf(index);
-        }
-    }
+    // function _initializeOwnershipAt(uint256 index) internal {
+    //     if (_packedOwnerships[index] == 0) {
+    //         _packedOwnerships[index] = _packedOwnershipOf(index);
+    //     }
+    // }
 
     /**
      * Gas spent here starts off proportional to the maximum mint batch size.
@@ -372,8 +371,8 @@ contract ERC721AX is IERC721AX {
         address owner = address(uint160(_packedOwnershipOf(tokenId)));
         if (to == owner) revert ApprovalToCurrentOwner();
 
-        if (_msgSenderERC721AX() != owner)
-            if (!isApprovedForAll(owner, _msgSenderERC721AX())) {
+        if (_msgSenderERC721AModified() != owner)
+            if (!isApprovedForAll(owner, _msgSenderERC721AModified())) {
                 revert ApprovalCallerNotOwnerNorApproved();
             }
 
@@ -403,10 +402,10 @@ contract ERC721AX is IERC721AX {
         virtual
         override
     {
-        if (operator == _msgSenderERC721AX()) revert ApproveToCaller();
+        if (operator == _msgSenderERC721AModified()) revert ApproveToCaller();
 
-        _operatorApprovals[_msgSenderERC721AX()][operator] = approved;
-        emit ApprovalForAll(_msgSenderERC721AX(), operator, approved);
+        _operatorApprovals[_msgSenderERC721AModified()][operator] = approved;
+        emit ApprovalForAll(_msgSenderERC721AModified(), operator, approved);
     }
 
     /**
@@ -656,9 +655,9 @@ contract ERC721AX is IERC721AX {
         if (address(uint160(prevOwnershipPacked)) != from)
             revert TransferFromIncorrectOwner();
 
-        bool isApprovedOrOwner = (_msgSenderERC721AX() == from ||
-            isApprovedForAll(from, _msgSenderERC721AX()) ||
-            getApproved(tokenId) == _msgSenderERC721AX());
+        bool isApprovedOrOwner = (_msgSenderERC721AModified() == from ||
+            isApprovedForAll(from, _msgSenderERC721AModified()) ||
+            getApproved(tokenId) == _msgSenderERC721AModified());
 
         if (!isApprovedOrOwner) revert TransferCallerNotOwnerNorApproved();
         if (to == address(0)) revert TransferToZeroAddress();
@@ -731,9 +730,9 @@ contract ERC721AX is IERC721AX {
         address from = address(uint160(prevOwnershipPacked));
 
         if (approvalCheck) {
-            bool isApprovedOrOwner = (_msgSenderERC721AX() == from ||
-                isApprovedForAll(from, _msgSenderERC721AX()) ||
-                getApproved(tokenId) == _msgSenderERC721AX());
+            bool isApprovedOrOwner = (_msgSenderERC721AModified() == from ||
+                isApprovedForAll(from, _msgSenderERC721AModified()) ||
+                getApproved(tokenId) == _msgSenderERC721AModified());
 
             if (!isApprovedOrOwner) revert TransferCallerNotOwnerNorApproved();
         }
@@ -810,8 +809,8 @@ contract ERC721AX is IERC721AX {
         bytes memory _data
     ) private returns (bool) {
         try
-            ERC721AX__IERC721Receiver(to).onERC721Received(
-                _msgSenderERC721AX(),
+            ERC721AModified__IERC721Receiver(to).onERC721Received(
+                _msgSenderERC721AModified(),
                 from,
                 tokenId,
                 _data
@@ -819,7 +818,7 @@ contract ERC721AX is IERC721AX {
         returns (bytes4 retval) {
             return
                 retval ==
-                ERC721AX__IERC721Receiver(to).onERC721Received.selector;
+                ERC721AModified__IERC721Receiver(to).onERC721Received.selector;
         } catch (bytes memory reason) {
             if (reason.length == 0) {
                 revert TransferToNonERC721ReceiverImplementer();
@@ -881,7 +880,7 @@ contract ERC721AX is IERC721AX {
      *
      * If you are writing GSN compatible contracts, you need to override this function.
      */
-    function _msgSenderERC721AX() internal view virtual returns (address) {
+    function _msgSenderERC721AModified() internal view virtual returns (address) {
         return msg.sender;
     }
 
